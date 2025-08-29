@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SurPass - Administración</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome para íconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- Fuentes de Google: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+        
+    <!-- Estilos personalizados -->
+    <style>
+    <?!= include('admin.css'); ?>
+    </style>
+</head>
+
+<body>
+    <div class="main-container">
+        <!-- Loader global unificado -->
+        <div id="loadingOverlay" class="loading-overlay" style="display:none;">
+            <div class="unified-loader-container">
+                <div class="unified-loader"></div>
+                <p class="unified-loader-message loading-text">Cargando...</p>
+            </div>
+        </div>
+
+        <!-- Contenedor de toasts modernos -->
+        <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 items-end"></div>
+        
+        <!-- Contenedor del modal de personal -->
+        <div id="person-modal-container"></div>
+
+        <!-- Modal de confirmación de cambio de estado de personal -->
+        <div id="status-change-modal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden">
+            <div class="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl p-8 max-w-md w-full animate-fade-in">
+                <div class="flex items-center mb-4">
+                    <i class="fas fa-exchange-alt text-2xl text-yellow-400 mr-3"></i>
+                    <h3 class="text-lg font-bold text-white">Confirmar cambio de estado</h3>
+                </div>
+                <p id="status-change-message" class="text-gray-200 mb-6">¿Está seguro de cambiar el estado?</p>
+                <div class="flex justify-end gap-4">
+                    <button type="button" onclick="closeStatusModal()" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-semibold transition-colors">
+                        Cancelar
+                    </button>
+                    <button id="confirm-status-btn" type="button" onclick="confirmStatusChange()" class="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-semibold transition-colors">
+                        Confirmar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal de confirmación de eliminación -->
+        <div id="delete-modal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden">
+            <div class="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl p-8 max-w-md w-full animate-fade-in">
+                <div class="flex items-center mb-4">
+                    <i class="fas fa-trash-alt text-2xl text-red-400 mr-3"></i>
+                    <h3 class="text-lg font-bold text-white">Confirmar eliminación</h3>
+                </div>
+                <p id="delete-message" class="text-gray-200 mb-6">¿Está seguro de eliminar este registro?</p>
+                <div class="flex justify-end gap-4">
+                    <button type="button" onclick="closeDeleteModal()" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-semibold transition-colors">
+                        Cancelar
+                    </button>
+                    <button type="button" onclick="confirmDelete()" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold transition-colors">
+                        Eliminar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal de mensaje general -->
+        <div id="message-modal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden">
+            <div class="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl p-8 max-w-md w-full animate-fade-in">
+                <div class="flex items-center mb-4">
+                    <div id="message-icon-container" class="mr-3">
+                        <i class="fas fa-info-circle text-2xl text-blue-400"></i>
+                    </div>
+                    <h3 id="message-title" class="text-lg font-bold text-white">Información</h3>
+                </div>
+                <p id="message-text" class="text-gray-200 mb-6">Mensaje del sistema</p>
+                <div class="flex justify-end">
+                    <button type="button" onclick="document.getElementById('message-modal').classList.add('hidden')" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors">
+                        Aceptar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal de edición de configuración -->
+        <div id="edit-config-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-gray-800 p-6 rounded-lg shadow-lg max-w-2xl w-full mx-4 max-h-screen overflow-y-auto">
+                <h3 class="text-xl font-semibold mb-4">Editar Configuración</h3>
+                <div id="config-form-container">
+                    <!-- Los campos se generan dinámicamente -->
+                </div>
+                <div class="flex justify-end space-x-4 mt-6">
+                    <button type="button" onclick="closeConfigModal()" 
+                        class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg">
+                        Cancelar
+                    </button>
+                    <button type="button" onclick="saveConfigModal()" 
+                        class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">
+                        Guardar Cambios
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal de ConfiguraciÃ³n Moderno -->
+        <div id="config-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 hidden">
+            <div class="bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-gray-700 animate-fade-in">
+                <div class="p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 id="config-modal-title" class="text-xl font-bold text-white flex items-center">
+                            <i class="fa-solid fa-cogs mr-2 text-blue-400"></i>Editar Configuración
+                        </h3>
+                        <button onclick="document.getElementById('config-modal').classList.add('hidden')" class="text-gray-400 hover:text-white">
+                            <i class="fas fa-times text-2xl"></i>
+                        </button>
+                    </div>
+                    <div id="config-modal-body" class="py-4">
+                        <!-- El contenido del formulario se insertará aquí dinámicamente -->
+                        <div class="unified-loader-container" style="background: transparent; box-shadow: none;">
+                            <div class="unified-loader"></div>
+                            <p class="unified-loader-message">Cargando configuración...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal de Carga Moderno -->
+        <div id="loading-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 hidden">
+            <div class="bg-gray-800 rounded-2xl p-8 flex flex-col items-center shadow-2xl border border-gray-700 animate-fade-in">
+                <div class="unified-loader-container">
+                    <div class="unified-loader"></div>
+                    <p id="loading-text" class="unified-loader-message text-xl">Cargando...</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Contenedor del formulario de login -->
+        <div id="login-container" class="login-container">
+            <div class="w-full max-w-md">
+                <div class="card bg-gray-900 border border-gray-700 shadow-xl rounded-2xl p-8">
+                    <div class="flex justify-center mb-6">
+                        <!-- Logo de SurPass (puedes reemplazarlo con una imagen o SVG) -->
+                        <span class="text-3xl font-bold text-white">SurPass</span>
+                    </div>
+                    <h1 class="text-xl font-bold text-center mb-6">Acceso de Administrador</h1>
+                    
+                    <form id="login-form" class="space-y-4">
+                        <div>
+                            <label for="cedula-input" class="block text-sm font-medium mb-1">Cédula</label>
+                            <input type="text" id="cedula-input" name="cedula" placeholder="Ej. 8-888-888" required 
+                                class="w-full p-2 rounded-lg bg-gray-800 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-red-500">
+                        </div>
+                        <div>
+                            <label for="password-input" class="block text-sm font-medium mb-1">Contraseña</label>
+                            <input type="password" id="password-input" name="password" placeholder="••••••••" required 
+                                class="w-full p-2 rounded-lg bg-gray-800 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-red-500">
+                        </div>
+                        <button type="submit" id="login-button" 
+                            class="w-full text-white font-bold py-2 px-4 rounded-lg" 
+                            style="background: var(--primary-gradient);">
+                            Iniciar Sesión
+                        </button>
+                    </form>
+
+                    <!-- Error message -->
+                    <div id="login-error" class="mt-4 p-3 rounded-lg bg-red-600 text-white text-sm text-center hidden"></div>
+
+                    <!-- Mensaje de desarrollo -->
+                    <div id="dev-mode-info" class="mt-4 p-3 rounded-lg bg-gray-800 border border-gray-700 text-sm text-center hidden">
+                        Modo desarrollo: Usa 'admin' / 'admin123' para iniciar sesión.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contenedor del Dashboard (oculto por defecto) -->
+        <div id="dashboard-container" class="dashboard-container hidden">
+            <header class="flex justify-between items-center bg-gray-800 p-4 rounded-b-2xl shadow-lg mb-6">
+                <div class="flex items-center">
+                    <span class="text-xl font-bold text-white mr-4">SurPass</span>
+                    <span id="user-info" class="text-sm text-gray-400"></span>
+                </div>
+                <div class="flex items-center">
+                    <button id="logout-button" class="text-gray-400 hover:text-red-500 transition-colors">
+                        <i class="fas fa-sign-out-alt mr-2"></i> Cerrar Sesión
+                    </button>
+                </div>
+            </header>
+
+            <div class="flex flex-col md:flex-row gap-6">
+                <!-- Panel de Navegación Lateral -->
+                <nav class="md:w-64 p-4 card rounded-2xl shadow-xl flex-shrink-0">
+                    <h2 class="text-lg font-bold mb-4">Menú de Opciones</h2>
+                    <ul class="space-y-2">
+                        <li><button id="tab-personal" class="tab-button active w-full text-left p-3 rounded-xl flex items-center">
+                            <i class="fas fa-users-line w-6 mr-2"></i> Gestión de Personal
+                        </button></li>
+                        <li><button id="tab-configuracion" class="tab-button w-full text-left p-3 rounded-xl flex items-center">
+                            <i class="fas fa-cogs w-6 mr-2"></i> Configuración del Sistema
+                        </button></li>
+                        <li><button id="tab-usuarios" class="tab-button w-full text-left p-3 rounded-xl flex items-center">
+                            <i class="fas fa-user-shield w-6 mr-2"></i> Usuarios Administradores
+                        </button></li>
+                        <li><button id="tab-logs" class="tab-button w-full text-left p-3 rounded-xl flex items-center">
+                            <i class="fas fa-list w-6 mr-2"></i> Logs del Sistema
+                        </button></li>
+                        <li><button id="tab-evacuacion" class="tab-button w-full text-left p-3 rounded-xl flex items-center">
+                            <i class="fas fa-house-chimney-crack w-6 mr-2"></i> Estado de Evacuación
+                        </button></li>
+                        <li><button id="tab-diagnostico" class="tab-button w-full text-left p-3 rounded-xl flex items-center">
+                            <i class="fas fa-heart-pulse w-6 mr-2"></i> Diagnóstico del Sistema
+                        </button></li>
+                    </ul>
+                </nav>
+
+                <!-- Contenido Principal -->
+                <main class="flex-1 p-4 card rounded-2xl shadow-xl">
+                    <div id="content-container">
+                        <!-- Aquí se cargará el contenido dinámico de cada pestaña -->
+                        <h2 class="text-2xl font-bold mb-4">¡Bienvenido!</h2>
+                        <p class="text-gray-400">Selecciona una opción del menú para comenzar.</p>
+                    </div>
+                </main>
+        </div>
+    </div>
+<?!= include('admin.gs'); ?>
+<?!= include('utils.gs'); ?>
+</body>
+</html>

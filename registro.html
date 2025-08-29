@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title id="page-title">SurPass - Sistema de Control de Acceso</title>
+    
+    <!-- Inclusión de Fuentes y Librerías Externas -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Librerías de JavaScript Externas -->
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
+    <?!= include('registro.css'); ?>
+</head>
+    <body>
+    <div id="toast-container" class="toast-container"></div>
+    <div class="app-container">
+            <!-- Header Principal -->
+            <header class="header">
+                <div class="header-content">
+                    <div class="logo">
+                        <i class="fas fa-shield-alt"></i>
+                        <span id="company-name">SurPass</span> <!-- 🔧 [CONFIG-INTEGRATION] Nombre dinámico de empresa -->
+                    </div>
+                    
+                    <div class="header-actions">
+                        <!-- Indicador de conexión -->
+                        <div id="conexionIndicador" class="connection-status">
+                            <i class="fas fa-wifi"></i>
+                            <span class="conexion-texto">En línea</span>
+                        </div>
+                        
+                        <!-- Botón de menú -->
+                        <button id="menuButton" class="menu-toggle" aria-haspopup="true" aria-expanded="false" title="Menú">
+                            <i class="fas fa-bars"></i>
+                        </button>
+                        
+                        <!-- Menú dropdown dinámico -->
+                        <div id="menuDropdown" class="menu-dropdown">
+                            <!-- El contenido se genera dinámicamente con buildMenuDropdown() -->
+                        </div>
+                        <!-- Overlay del menú a pantalla completa -->
+                        <div id="menuOverlay" class="menu-overlay"></div>
+                    </div>
+                </div>
+                <!-- Botón de menú duplicado eliminado -->
+            </header>
+
+            <!-- Contenido Principal -->
+            <main class="main-content">
+                <!-- Sección Principal -->
+                <section class="section active" id="mainSection">
+                    <div class="section-header">
+                        <h1 class="section-title">Control de Acceso</h1>
+                        <p class="section-subtitle">Sistema integrado de registro de entrada y salida</p>
+                    </div>
+
+                    <!-- Formulario de Acceso -->
+                    <form id="accessForm" class="access-form">
+                        <!-- Campo de Cédula -->
+                        <div class="input-group">
+                            <div class="cedula-input-container" style="position: relative;">
+                                <input type="text" 
+                                    id="cedula" 
+                                    name="cedula" 
+                                    class="input cedula-input" 
+                                    placeholder="Ingrese cédula o nombre"
+                                    autocomplete="off"
+                                    style="padding-right: var(--input-padding-r);">
+                                
+                                <!-- Botones dentro del input -->
+                                <div class="input-internal-actions" style="position: absolute; right: 16px; top: 50%; transform: translateY(-50%); display: flex; gap: 20px;">
+                                    <button type="button" id="limpiarCedula" class="btn-icon" style="display: none; background: none; border: none; color: var(--text-muted); font-size: 40px; padding: 16px; cursor: pointer; min-width: 80px; min-height: 80px;" title="Limpiar">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                    <button type="button" id="qrButton" class="btn-icon qr-button" style="background: none; border: none; color: var(--primary); font-size: 40px; padding: 16px; cursor: pointer; min-width: 80px; min-height: 80px; transition: all 0.2s ease;" title="Escanear QR - Auto-detecta mejor escáner">
+                                        <i class="fas fa-qrcode"></i>
+                                    </button>
+                                </div>
+                                
+                                <!-- Sugerencias -->
+                                <ul id="cedulaSuggestions" class="suggestions">
+                                    <!-- Las sugerencias se cargan dinámicamente -->
+                                </ul>
+                                <div class="autocomplete-hint" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem; display: none;">
+                                    <i class="fas fa-keyboard"></i> Use ↑↓ para navegar, Enter para seleccionar, Esc para cerrar
+                                </div>
+                            </div>
+                            
+                            <!-- Información seleccionada -->
+                            <div id="infoSeleccionada" class="person-info"></div>
+                            
+                            <!-- Tarjeta de datos del usuario (oculta por solicitud del usuario) -->
+                            <div id="userDataCard" class="data-card" style="display: none;">
+                                <!-- Contenido oculto permanentemente -->
+                                <div id="userDataName" style="display:none"></div>
+                                <div id="userDataCompany" style="display:none"></div>
+                                <div id="userDataCedula" style="display:none"></div>
+                                <div id="userDataArea" style="display:none"></div>
+                                <div id="userDataCargo" style="display:none"></div>
+                                <div id="userDataEstado" style="display:none"></div>
+                            </div>
+                            
+                            <!-- Tarjeta de información de la persona -->
+                            <div id="personInfoCard" class="card-new person-info-card" style="display: none;">
+                                <div class="card-new-header">
+                                    <div class="card-new-avatar">
+                                        <i class="fas fa-user"></i>
+                                    </div>
+                                    <div class="card-new-details">
+                                        <h3 id="personCardName" class="card-new-title"></h3>
+                                        <p id="personCardCompany" class="card-new-subtitle"></p>
+                                    </div>
+                                    <button id="personCardComment" class="card-new-action" title="Agregar comentario">
+                                        <i class="fas fa-comment"></i>
+                                    </button>
+                                </div>
+                                <div class="card-new-body">
+                                    <div class="card-new-info-grid">
+                                        <div class="card-new-info-item">
+                                            <span class="card-new-label">Cédula:</span>
+                                            <span id="personCardCedula" class="card-new-value"></span>
+                                        </div>
+                                        <div class="card-new-info-item" id="entryTimeInfo" style="display: none;">
+                                            <span class="card-new-label">Hora de entrada:</span>
+                                            <span id="personCardEntryTime" class="card-new-value"></span>
+                                        </div>
+                                        <div class="card-new-info-item" id="durationInfo" style="display: none;">
+                                            <span class="card-new-label">Tiempo dentro:</span>
+                                            <span id="personCardDuration" class="card-new-value"></span>
+                                        </div>
+                                        <div class="card-new-info-item" id="accessTypeInfo">
+                                            <span class="card-new-label">Tipo de acceso:</span>
+                                            <span id="personCardAccessType" class="card-new-value"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Selector de tipo de acceso -->
+                        <div class="access-type-selector">
+                            <label class="access-option">
+                                <input type="radio" name="respuesta" value="entrada" id="entrada">
+                                <div class="access-icon">
+                                    <i class="fas fa-sign-in-alt"></i>
+                                </div>
+                                <div class="access-label">Entrada</div>
+                            </label>
+                            
+                            <label class="access-option">
+                                <input type="radio" name="respuesta" value="salida" id="salida">
+                                <div class="access-icon">
+                                    <i class="fas fa-sign-out-alt"></i>
+                                </div>
+                                <div class="access-label">Salida</div>
+                            </label>
+                        </div>
+
+                        <!-- Error de radio buttons -->
+                        <div id="radioError">
+                            Por favor seleccione Entrada o Salida
+                        </div>
+
+                        <!-- Botón de envío -->
+                        <input type="submit" value="Registrar" class="btn btn-primary submit-btn">
+                    </form>
+                </section>
+            </main>
+
+            <!-- Panel de Estadísticas Flotante -->
+            <div id="statsPanel" class="stats-panel">
+                <div class="stats-panel-header">
+                    <div class="stats-panel-title">
+                        <i class="fas fa-chart-line"></i>
+                        Estadísticas
+                    </div>
+                    <button class="stats-panel-toggle">
+                        <i class="fas fa-minus"></i>
+                    </button>
+                </div>
+                
+                <div class="stats-panel-content">
+                    <!-- Grid de estadísticas -->
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div id="entradasLive" class="stat-value">0</div>
+                            <div class="stat-label">Entradas</div>
+                        </div>
+                        <div class="stat-item">
+                            <div id="salidasLive" class="stat-value">0</div>
+                            <div class="stat-label">Salidas</div>
+                        </div>
+                        <div class="stat-item">
+                            <div id="personasDentroLive" class="stat-value">0</div>
+                            <div class="stat-label">Dentro</div>
+                        </div>
+                    </div>
+
+                    <!-- Salidas sin entrada (solo se muestra si hay) -->
+                    <div id="salidasSinEntradaLive" class="stat-item" style="display: none;">
+                        <div class="stat-value">0</div>
+                        <div class="stat-label">Salidas sin entrada</div>
+                    </div>
+
+                    <!-- Mini gráfica -->
+                    <div id="miniChart" class="mini-chart"></div>
+
+                    <!-- Historial en vivo -->
+                    <div class="liveHistory-header" onclick="toggleLiveHistory()">
+                        <span>Últimos Registros</span>
+                        <i class="fas fa-chevron-down liveHistory-toggle"></i>
+                    </div>
+                    <div class="liveHistory-content">
+                        <table class="liveHistory-table">
+                            <thead>
+                                <tr>
+                                    <th>Cédula</th>
+                                    <th>Nombre</th>
+                                    <th>Acción</th>
+                                    <th>Fecha</th>
+                                    <th>Hora</th>
+                                    <th>Duración</th>
+                                </tr>
+                            </thead>
+                            <tbody id="liveHistoryBody">
+                                <!-- Los registros se cargan dinámicamente -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botón de limpiar historial central (inicialmente oculto) -->
+            <button id="limpiarHistorialCentral">
+                <i class="fas fa-broom"></i>
+                Limpiar Historial
+            </button>
+        </div>
+
+        <!-- Modal de Notificación Personalizado -->
+        <div id="customNotificationModal" class="custom-notification-modal">
+            <div class="custom-modal-content">
+                <div class="custom-modal-header">
+                    <i id="notificationIcon" class="notification-icon"></i>
+                    <h3 id="notificationTitle" class="notification-title"></h3>
+                </div>
+                <div class="custom-modal-body">
+                    <p id="notificationMessage" class="notification-message"></p>
+                    <div id="notificationButtons" class="notification-buttons">
+                        <!-- Los botones se generan dinámicamente -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal de Comentarios -->
+        <div id="commentModal" class="comment-modal">
+            <div class="comment-modal-content">
+                <div class="comment-modal-header">
+                    <h2>
+                        <i class="fas fa-comment-alt modal-icon"></i>
+                        Justificación Requerida
+                    </h2>
+                    <p class="modal-subtitle">Persona Registrada</p>
+                    <p class="modal-description">Proporcione una justificación para esta acción</p>
+                </div>
+                
+                <div class="comment-modal-body">
+                    <div class="info-display">
+                        <div class="info-display-row">
+                            <span class="info-label">Cédula:</span>
+                            <span id="commentModalCedula" class="info-value"></span>
+                        </div>
+                        <div class="info-display-row">
+                            <span class="info-label">Nombre:</span>
+                            <span id="commentModalNombre" class="info-value"></span>
+                        </div>
+                    </div>
+                    
+                    <form id="commentForm">
+                        <div class="form-group">
+                            <label for="commentText">Justificación:</label>
+                            <textarea id="commentText" 
+                                    placeholder="Describa la situación que justifica esta acción..."
+                                    required></textarea>
+                        </div>
+                        
+                        <div class="modal-buttons">
+                            <button type="button" id="cancelComment" class="btn btn-outline">
+                                <i class="fas fa-times"></i>
+                                Cancelar
+                            </button>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-paper-plane"></i>
+                                Enviar Justificación
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <!-- Loading dentro del modal -->
+                    <div id="commentLoading" class="comment-loading">
+                        <div class="unified-loader"></div>
+                        <p class="unified-loader-message comment-loading-text">Procesando...</p>
+                    </div>
+                </div>
+                
+                <button id="closeCommentModal" class="modal-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Modal de Comentarios Personalizado (para personas no registradas) - Pantalla completa -->
+        <div id="customCommentModal" class="comment-modal fullscreen">
+            <div class="comment-modal-content">
+                <div class="comment-modal-header">
+                    <h2>
+                        <i class="fas fa-user-plus modal-icon"></i>
+                        Registro de Acceso Temporal
+                    </h2>
+                    <p class="modal-subtitle">Persona No Identificada</p>
+                    <p class="modal-description">Complete la información para proceder con el registro</p>
+                </div>
+                
+                <div class="comment-modal-body">
+                    <div class="info-display">
+                        <div class="info-display-row">
+                            <span class="info-label">Cédula:</span>
+                            <span id="modalCedula" class="info-value"></span>
+                        </div>
+                        <div class="info-display-row">
+                            <span class="info-label">Tipo de Acceso:</span>
+                            <span id="modalTipoAcceso" class="info-value"></span>
+                        </div>
+                    </div>
+                    
+                    <form id="customCommentForm">
+                        <!-- Input oculto para cédula -->
+                        <input type="hidden" id="customCedula" name="cedula" required>
+                        <!-- Input oculto para tipo de acceso -->
+                        <input type="hidden" id="customTipoAcceso" name="tipoAcceso" required>
+                        <div class="form-group">
+                            <label for="personName">Nombre Completo: *</label>
+                            <input type="text" 
+                                id="personName" 
+                                placeholder="Ingrese el nombre completo"
+                                required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="personCompany">Empresa:</label>
+                            <input type="text" 
+                                id="personCompany" 
+                                placeholder="Ingrese la empresa (opcional)">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="visitReason">Motivo de la Visita: *</label>
+                            <textarea id="visitReason" 
+                                    placeholder="Describa el motivo de la visita..."
+                                    required></textarea>
+                        </div>
+                        
+                        <div class="modal-buttons">
+                            <button type="button" id="cancelCustomComment" class="btn btn-outline">
+                                <i class="fas fa-times"></i>
+                                Cancelar
+                            </button>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i>
+                                Registrar Acceso
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <!-- Loading dentro del modal -->
+                    <div id="customCommentLoading" class="comment-loading">
+                        <div class="unified-loader"></div>
+                        <p class="unified-loader-message comment-loading-text">Registrando...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal de Evacuación -->
+    <div id="evacuationModal" class="evacuation-modal hidden">
+        <div id="evacuationModalContent" class="evacuation-modal-content">
+            <div class="evacuation-modal-header">
+    <div>
+        <h2 class="evacuation-modal-title">
+            <i class="fas fa-exclamation-triangle"></i>
+            Modo Evacuación
+        </h2>
+        <p class="evacuation-modal-subtitle">
+            Sistema de Control de Emergencias - 
+            <span id="horaVerificacion"></span>
+        </p>
+    </div>
+    <button class="evacuation-close-btn" id="btnCerrarEvacuacionHeader">
+        <i class="fas fa-times"></i>
+    </button>
+</div>
+            
+            <div class="evacuation-modal-body">
+                <!-- Selección de tipo de evacuación -->
+                <div class="type-selection-section">
+                    <h3 class="type-selection-title">Seleccione el Tipo de Evacuación</h3>
+                    
+                    <div class="evacuation-type-grid">
+                        <div id="btnSimulacroModerno" class="type-card-modern">
+                            <div class="type-icon">
+                                <i class="fas fa-theater-masks"></i>
+                            </div>
+                            <h4>Simulacro</h4>
+                            <p>Práctica de evacuación. Rastrea progreso sin modificar registros reales.</p>
+                        </div>
+                        
+                        <div id="btnRealModerno" class="type-card-modern">
+                            <div class="type-icon">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
+                            <h4>Evacuación Real</h4>
+                            <p>Emergencia real. Registra salidas permanentes en el sistema.</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Información del tipo seleccionado -->
+                    <div id="infoTipoSeleccionadoModerno" style="display: none;"></div>
+                </div>
+
+                <!-- Sección de personal -->
+                <div class="personnel-section">
+                    <div class="personnel-header">
+                        <h3 class="personnel-title">Personal Dentro del Edificio</h3>
+                        <div class="personnel-count">
+                            Total: <span id="totalPersonasDentro">0</span> personas
+                        </div>
+                    </div>
+                    
+                    <!-- Controles de selección -->
+                    <div class="selection-controls">
+                        <button id="btnSeleccionarTodosModerno" class="btn btn-secondary">
+                            <i class="fas fa-check-square"></i>
+                            Seleccionar Todos
+                        </button>
+                        <button id="btnLimpiarSeleccionModerno" class="btn btn-outline">
+                            <i class="fas fa-square"></i>
+                            Limpiar Selección
+                        </button>
+                        <button id="btnActualizarLista" class="btn btn-outline">
+                            <i class="fas fa-sync-alt"></i>
+                            Actualizar Lista
+                        </button>
+                    </div>
+                    
+                    <!-- Grid de personal -->
+                    <div id="personalGridModerno" class="personnel-grid"></div>
+                    
+                    <!-- NUEVA SECCIÓN: Estado de Evacuación para Simulacros -->
+                    <div id="estadoEvacuacionSimulacro" style="display: none; margin-top: 20px;">
+                        <div class="simulacro-status-card">
+                            <h4 class="simulacro-status-title">
+                                <i class="fas fa-list-check"></i> Estado del Simulacro
+                            </h4>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                <div class="simulacro-counter">
+                                    <strong>Evacuados:</strong> <span id="contadorEvacuados">0</span>
+                                </div>
+                                <div class="simulacro-counter">
+                                    <strong>Restantes:</strong> <span id="contadorRestantes">0</span>
+                                </div>
+                            </div>
+                            <div id="listaRestantes" class="simulacro-remaining-list"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Acciones de evacuación -->
+            <div class="evacuation-actions">
+                <div class="selection-summary">
+                    <i class="fas fa-users"></i>
+                    <span>Seleccionados: <strong id="selectionCountModerno">0</strong></span>
+                </div>
+                
+                <div style="display: flex; gap: var(--space-md);">
+                    <button id="btnVolverEvacuacion" class="btn btn-secondary" style="display: none;">
+                        <i class="fas fa-arrow-left"></i>
+                        Volver
+                    </button>
+                    <button id="btnCerrarEvacuacion" class="btn btn-outline">
+                        <i class="fas fa-times"></i>
+                        Cancelar
+                    </button>
+                    <button id="btnConfirmarSalidas" class="btn btn-secondary" disabled>
+                        <i class="fas fa-play"></i>
+                        Ejecutar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+        <!-- Escáner QR -->
+        <div id="qrScanner" class="qr-scanner">
+            <div class="qr-modal-content">
+                <h3 style="text-align: center; margin-bottom: var(--space-lg); color: var(--text-primary);">
+                    <i class="fas fa-qrcode"></i>
+                    Escáner QR
+                </h3>
+                
+                <!-- Para html5-qrcode -->
+                <div id="qr-reader"></div>
+                
+                <!-- Para jsQR -->
+                <div id="qrModalContent" style="display: none;">
+                    <video id="qrVideo" autoplay playsinline></video>
+                    <canvas id="qrCanvas"></canvas>
+                </div>
+                
+                <div style="text-align: center; margin-top: var(--space-lg);">
+                    <button id="qrCloseButton" class="btn btn-danger">
+                        <i class="fas fa-times"></i>
+                        Cerrar Escáner
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Botón de cerrar flotante -->
+            <button class="qr-close-button">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <!-- Vista Previa -->
+        <div id="vistaPrevia" class="vista-previa">
+            <div class="vista-previa-header">
+                <h2 class="vista-previa-title">
+                    <i class="fas fa-history"></i>
+                    Historial de Registros
+                </h2>
+                <button class="btn-regresar">
+                    <i class="fas fa-arrow-left"></i>
+                    Regresar
+                </button>
+            </div>
+            <div id="contenidoVistaPrevia" class="vista-previa-content">
+                <!-- Se carga dinámicamente -->
+            </div>
+        </div>
+
+        <!-- Vista Previa Historial -->
+        <div id="vistaPreviaHistorial" class="vista-previa">
+            <div class="vista-previa-header">
+                <h2 class="vista-previa-title">
+                    <i class="fas fa-info-circle"></i>
+                    Información del Sistema
+                </h2>
+                <button class="btn-regresar">
+                    <i class="fas fa-arrow-left"></i>
+                    Regresar
+                </button>
+            </div>
+            <div id="vistaPreviaHistorialContenido" class="vista-previa-content">
+                <!-- Se carga dinámicamente -->
+            </div>
+        </div>
+
+        <!-- Overlay de Logs -->
+        <div id="logOverlay" class="log-overlay">
+            <div class="log-content-container">
+                <div class="log-header">
+                    <h3 class="log-title">
+                        <i class="fas fa-file-alt"></i>
+                        Registro de Eventos del Sistema
+                    </h3>
+                    <button id="logCloseButton" class="log-close">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div id="logContent" class="log-content">
+                    <!-- Los logs se cargan dinámicamente -->
+                </div>
+            </div>
+            
+            <button id="closeLogOverlay" class="log-close" style="position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.1); border: none; color: white; font-size: 1.5rem; padding: 10px; border-radius: 50%; cursor: pointer;">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <!-- Loading Overlay -->
+        <div id="loadingOverlay" class="loading-overlay">
+            <div class="unified-loader-container">
+                <div class="unified-loader"></div>
+                <p class="unified-loader-message loading-text">Cargando...</p>
+            </div>
+        </div>
+
+        <!-- Modal de Historial -->
+        <div id="historialModal" class="historial-modal">
+            <div class="historial-modal-content">
+                <div class="historial-modal-header">
+                    <h2 class="historial-modal-title">
+                        <i class="fas fa-history"></i>
+                        <span>Historial de Registros</span>
+                    </h2>
+                    <button id="historialModalClose" class="historial-modal-close">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="historial-modal-body" id="historialModalBody">
+                    <!-- Loader -->
+
+                    
+                    <!-- Mensaje de error/vacío -->
+                    <div id="historialMessage" style="display: none;"></div>
+                    
+                    <!-- Contenedor con scroll horizontal para la tabla -->
+                    <div class="historial-table-container">
+                        <!-- Tabla de historial -->
+                        <table class="historial-table" id="historialTable" style="display: none;">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Cédula</th>
+                                    <th>Nombre</th>
+                                    <th>Estado</th>
+                                    <th>Entrada</th>
+                                    <th>Salida</th>
+                                    <th>Duración</th>
+                                    <th>Empresa</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablaHistorialBody">
+                                <!-- Las filas se llenarán dinámicamente -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Elementos de Audio -->
+        <audio id="successSound" preload="auto">
+            <source src="https://www.soundjay.com/misc/sounds/bell-ringing-05.wav" type="audio/mpeg">
+        </audio>
+        <audio id="errorSound" preload="auto">
+            <source src="https://www.soundjay.com/misc/sounds/fail-buzzer-02.wav" type="audio/mpeg">
+        </audio>
+        <audio id="scanSound" preload="auto">
+            <source src="https://www.soundjay.com/misc/sounds/beep-07a.wav" type="audio/mpeg">
+        </audio>
+    <?!= include('registro.gs'); ?>
+    <?!= include('utils.gs'); ?>
+    </body>
+    </html>

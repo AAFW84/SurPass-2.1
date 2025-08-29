@@ -1,0 +1,240 @@
+<script>
+/**
+ * Formatea una hora (Date o string) al formato HH:MM:SS
+ * @param {Date|string} hora
+ * @returns {string}
+ */
+function formatearHora(hora) {
+    try {
+        if (!hora) return '';
+        if (hora instanceof Date) {
+            const horas = hora.getHours();
+            const minutos = hora.getMinutes();
+            const segundos = hora.getSeconds();
+            return `${String(horas).padStart(2, '0')}:${String(minutos).padStart(2, '0')}:${String(segundos).padStart(2, '0')}`;
+        }
+        if (typeof hora === 'string') {
+            const horaLimpia = hora.trim();
+            if (/^\d{1,2}:\d{2}:\d{2}$/.test(horaLimpia)) {
+                const [h, m, s] = horaLimpia.split(':');
+                return `${h.padStart(2, '0')}:${m}:${s}`;
+            }
+            if (/^\d{1,2}:\d{2}$/.test(horaLimpia)) {
+                const [h, m] = horaLimpia.split(':');
+                return `${h.padStart(2, '0')}:${m}:00`;
+            }
+            return horaLimpia;
+        }
+        return String(hora);
+    } catch (e) {
+        console.error('Error formateando hora:', e);
+        return '';
+    }
+}
+// =================================================================
+// SURPASS - UTILIDADES JAVASCRIPT DEL CLIENTE (utils.js.html)
+// Este archivo centraliza funciones comunes para registro.html y admin.html
+// =================================================================
+// Función para reemplazar todos los alerts por modales personalizados
+function showAlert(message, title = 'Información') {
+    showGeneralMessage(title, message, 'info');
+}
+
+// Función para confirmaciones personalizadas
+function showConfirm(message, title = 'Confirmación', onConfirm = null, onCancel = null) {
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50';
+    modal.innerHTML = `
+        <div class="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl p-8 max-w-md w-full animate-fade-in">
+            <div class="flex items-center mb-4">
+                <i class="fas fa-question-circle text-2xl text-blue-400 mr-3"></i>
+                <h3 class="text-lg font-bold text-white">${title}</h3>
+            </div>
+            <p class="text-gray-200 mb-6">${message}</p>
+            <div class="flex justify-end gap-4">
+                <button type="button" class="confirm-cancel px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-semibold transition-colors">
+                    Cancelar
+                </button>
+                <button type="button" class="confirm-accept px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors">
+                    Aceptar
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    modal.querySelector('.confirm-cancel').onclick = () => {
+        document.body.removeChild(modal);
+        if (onCancel) onCancel();
+    };
+    modal.querySelector('.confirm-accept').onclick = () => {
+        document.body.removeChild(modal);
+        if (onConfirm) onConfirm();
+    };
+    return modal;
+}
+
+// Función para reemplazar prompts
+function showPrompt(message, defaultValue = '', title = 'Entrada requerida', onAccept = null, onCancel = null) {
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50';
+    modal.innerHTML = `
+        <div class="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl p-8 max-w-md w-full animate-fade-in">
+            <div class="flex items-center mb-4">
+                <i class="fas fa-edit text-2xl text-green-400 mr-3"></i>
+                <h3 class="text-lg font-bold text-white">${title}</h3>
+            </div>
+            <p class="text-gray-200 mb-4">${message}</p>
+            <input type="text" class="prompt-input w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 mb-6" value="${defaultValue}" placeholder="Ingrese su respuesta...">
+            <div class="flex justify-end gap-4">
+                <button type="button" class="prompt-cancel px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-semibold transition-colors">
+                    Cancelar
+                </button>
+                <button type="button" class="prompt-accept px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-colors">
+                    Aceptar
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    const input = modal.querySelector('.prompt-input');
+    input.focus();
+    input.select();
+    modal.querySelector('.prompt-cancel').onclick = () => {
+        document.body.removeChild(modal);
+        if (onCancel) onCancel();
+    };
+    modal.querySelector('.prompt-accept').onclick = () => {
+        const value = input.value;
+        document.body.removeChild(modal);
+        if (onAccept) onAccept(value);
+    };
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            modal.querySelector('.prompt-accept').click();
+        }
+    });
+    return modal;
+}
+
+
+// Loader global unificado para todos los módulos
+function mostrarLoading(message = 'Cargando...', timeout = 15000) {
+    const overlay = document.getElementById('loadingOverlay');
+    const msgElem = overlay ? overlay.querySelector('.unified-loader-message') : null;
+    if (!overlay) return;
+
+    overlay.style.display = 'flex';
+    if (msgElem) msgElem.textContent = message;
+
+    if (window.loaderTimeout) {
+        clearTimeout(window.loaderTimeout);
+        window.loaderTimeout = null;
+    }
+    if (timeout > 0) {
+        window.loaderTimeout = setTimeout(() => {
+            ocultarLoading();
+            if (typeof showToast === 'function') {
+                showToast('Operación Lenta', 'La operación está tomando más tiempo del esperado.', 'warning');
+            }
+        }, timeout);
+    }
+}
+
+function ocultarLoading() {
+    const overlay = document.getElementById('loadingOverlay');
+    if (overlay) overlay.style.display = 'none';
+    if (window.loaderTimeout) {
+        clearTimeout(window.loaderTimeout);
+        window.loaderTimeout = null;
+    }
+}
+
+/**
+ * Muestra una notificación tipo "toast" moderna.
+ * @param {string} title - Título de la notificación.
+ * @param {string} message - Mensaje principal.
+ * @param {string} type - 'info', 'success', 'error', 'warning'.
+ * @param {number} duration - Duración en milisegundos.
+ */
+function showToast(title, message, type = 'info', duration = 5000) {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    
+    const iconMap = {
+        success: 'fa-circle-check',
+        error: 'fa-circle-exclamation',
+        warning: 'fa-triangle-exclamation',
+        info: 'fa-circle-info'
+    };
+    
+    toast.innerHTML = `
+        <span class="toast-icon"><i class="fa-solid ${iconMap[type] || iconMap.info}"></i></span>
+        <div style="flex:1;">
+            <div class="toast-title">${title}</div>
+            <div class="toast-message">${message}</div>
+        </div>
+        <button class="toast-close" onclick="this.parentElement.remove()"><i class="fa-solid fa-xmark"></i></button>
+        <div class="toast-progress"><div class="toast-progress-bar"></div></div>
+    `;
+    
+    container.appendChild(toast);
+
+    // Lógica de auto-cierre con barra de progreso
+    const progressBar = toast.querySelector('.toast-progress-bar');
+    progressBar.style.transition = `width ${duration}ms linear`;
+    
+    setTimeout(() => {
+        progressBar.style.width = '0%';
+    }, 10); // Pequeño delay para que la transición se aplique
+
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(100%)';
+        toast.addEventListener('transitionend', () => toast.remove());
+    }, duration);
+}
+
+
+/**
+ * Parsea un objeto de error de Google Apps Script para obtener un mensaje legible.
+ * @param {Error|Object|string} err - El error devuelto por el backend.
+ * @param {string} fallbackMsg - Mensaje por defecto si no se puede parsear.
+ * @returns {{message: string, code: string|null, details: any}}
+ */
+function parseBackendError(err, fallbackMsg = 'Ha ocurrido un error inesperado.') {
+    try {
+        if (!err) return { message: fallbackMsg, code: null, details: null };
+        
+        // Si es un string, intentar parsearlo como JSON
+        if (typeof err === 'string') {
+            try {
+                const o = JSON.parse(err);
+                return { 
+                    message: o.message || fallbackMsg, 
+                    code: o.code || null, 
+                    details: o.details || o 
+                };
+            } catch (_) {
+                return { message: err, code: null, details: null };
+            }
+        }
+        
+        // Si ya es un objeto (caso más común)
+        if (typeof err === 'object') {
+            return {
+                message: err.message || err.mensaje || fallbackMsg,
+                code: err.code || err.codigo || null,
+                details: err.details || err.detalles || err
+            };
+        }
+        
+        return { message: fallbackMsg, code: null, details: null };
+    } catch (e) {
+        // Fallback final en caso de error en el propio parser
+        return { message: fallbackMsg, code: 'PARSER_ERROR', details: { originalError: err } };
+    }
+}
+</script>
