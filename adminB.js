@@ -2420,84 +2420,9 @@ function ejecutarDiagnosticoUnificado(nivel = 'completo') {
 // 🔗 FUNCIONES DE UTILIDAD PARA EL PANEL ADMIN
 // ======================
 
-/**
- * Valida credenciales de administrador
- * @param {string} credenciales - JSON con usuario y clave
- * @return {Object} Resultado de la validación
- */
-function validarAdministrador(credenciales) {
-  console.log('🔍 [DEBUG] Credenciales recibidas:', credenciales);
-  console.log('🔐 [ADMIN-INTERFACE] Validando credenciales...');
-  
-  try {
-    let credObj;
-    
-    // Parsear JSON con manejo de errores
-    try {
-      credObj = JSON.parse(credenciales);
-    } catch (parseError) {
-      // Intentar reparar JSON común
-      let credReparadas = credenciales
-        .replace(/'/g, '"')
-        .replace(/([{,]\s*)(\w+):/g, '$1"$2":')
-        .replace(/:\s*([^",\[\]{}]+)(?=\s*[,}])/g, ':"$1"')
-        .replace(/,(\s*[}\]])/g, '$1');
-      
-      try {
-        credObj = JSON.parse(credReparadas);
-      } catch (repairError) {
-        return {
-          success: false,
-          message: 'Formato de credenciales inválido'
-        };
-      }
-    }
-    
-    // Validar usando función existente
-    const adminResult = obtenerAdministradores();
-    console.log('🔍 [DEBUG] Admins cargados:', JSON.stringify(adminResult.admins));
-    if (!adminResult.success) {
-      return {
-        success: false,
-        message: 'Error accediendo a base de administradores'
-      };
-    }
-    
-    const { usuario, clave } = credObj;
-    const adminEncontrado = adminResult.admins.find(admin => {
-      // El campo puede ser 'contraseña' o estar en otra posición
-      const contraseña = admin.contraseña || admin.Contraseña || 
-                        (Array.isArray(admin) ? admin[2] : null);
-      return admin.cedula === usuario && contraseña === clave;
-    });
-    
-    if (adminEncontrado && adminEncontrado.cedula) {
-      return {
-        success: true,
-        admin: {
-          cedula: adminEncontrado.cedula || '',
-          nombre: adminEncontrado.nombre || '',
-          cargo: adminEncontrado.cargo || 'Administrador',
-          permisos: adminEncontrado.permisos || '{}'
-        },
-        message: 'Acceso autorizado'
-      };
-    } else {
-      return {
-        success: false,
-        admin: null,
-        message: 'Credenciales incorrectas'
-      };
-    }
-    
-  } catch (error) {
-    console.error('❌ [ADMIN-INTERFACE] Error validando:', error);
-    return {
-      success: false,
-      message: 'Error interno durante la validación'
-    };
-  }
-}
+// � [SEGURIDAD] FUNCIÓN ELIMINADA POR SEGURIDAD - validarAdministrador
+// Esta función ha sido eliminada porque manejaba contraseñas en texto plano.
+// USAR ÚNICAMENTE: validarAdministradorMejorado() para autenticación segura.
 
 // ======================
 // 🔗 FUNCIONES DE GESTIÓN DE PERSONAL (CRUD)
@@ -3118,7 +3043,11 @@ function eliminarErrorManual(errorId) {
 }
 
 // ======================
-// 🔧 [FIX] FUNCIONES CRUD PARA ADMINISTRADORES
+// � [SISTEMA DE AUTENTICACIÓN SEGURO]
+// ======================
+// IMPORTANTE: Este sistema usa hashing SHA-256 para todas las contraseñas
+// NUNCA almacenar o comparar contraseñas en texto plano
+// TODAS las funciones de autenticación deben usar validarAdministradorMejorado()
 // ======================
 
 /**
@@ -3459,9 +3388,13 @@ function obtenerAdministrador(cedula) {
 }
 
 /**
- * 🔒 [SEGURIDAD] Valida las credenciales de un administrador comparando hashes.
+ * 🔒 [SEGURIDAD CRÍTICA] Valida las credenciales de un administrador comparando hashes.
+ * ESTA ES LA ÚNICA FUNCIÓN SEGURA PARA AUTENTICACIÓN DE ADMINISTRADORES.
+ * ⚠️  NUNCA usar funciones que comparen contraseñas en texto plano.
+ * ⚠️  TODAS las contraseñas deben ser hasheadas antes de almacenar o comparar.
+ * 
  * @param {string} credenciales - JSON string con { usuario: string, clave: string }
- * @return {Object} Resultado de la validación.
+ * @return {Object} Resultado de la validación con datos del admin si es exitosa.
  */
 function validarAdministradorMejorado(credenciales) {
   console.log('🔐 [ADMIN-INTERFACE] Validando credenciales de administrador...');
@@ -3722,6 +3655,212 @@ function inicializarAdministradoresPorDefecto() {
     return {
       success: false,
       message: 'Error inicializando administradores: ' + error.message
+    };
+  }
+}
+
+/**
+ * � [AUDIT DE SEGURIDAD] Verifica que el sistema de autenticación sea seguro
+ * @return {Object} Reporte de seguridad del sistema
+ */
+function auditarSeguridadAutenticacion() {
+  console.log('🔍 [SECURITY-AUDIT] Iniciando auditoría de seguridad...');
+  
+  const reporte = {
+    success: true,
+    nivel: 'SEGURO',
+    problemas: [],
+    recomendaciones: [],
+    estadisticas: {}
+  };
+
+  try {
+    // 1. Verificar que la sal de seguridad existe
+    const salt = PropertiesService.getScriptProperties().getProperty('SURPASS_SECRET_SALT');
+    if (!salt) {
+      reporte.problemas.push('❌ Sal de seguridad no configurada');
+      reporte.nivel = 'CRÍTICO';
+      reporte.recomendaciones.push('Ejecutar _inicializarSalDeSeguridad()');
+    } else {
+      console.log('✅ [AUDIT] Sal de seguridad configurada');
+    }
+
+    // 2. Verificar hoja de administradores
+    const ss = SpreadsheetApp.getActive();
+    const hojaClave = ss.getSheetByName('Clave');
+    
+    if (!hojaClave) {
+      reporte.problemas.push('❌ Hoja "Clave" no existe');
+      reporte.nivel = 'CRÍTICO';
+      reporte.recomendaciones.push('Ejecutar crearHojaAdministradores()');
+      return reporte;
+    }
+
+    const datos = hojaClave.getDataRange().getValues();
+    reporte.estadisticas.totalAdmins = datos.length - 1;
+
+    if (datos.length <= 1) {
+      reporte.problemas.push('⚠️ No hay administradores registrados');
+      reporte.nivel = 'ALTO';
+      return reporte;
+    }
+
+    // 3. Verificar que las contraseñas están hasheadas
+    const encabezados = datos[0];
+    const mapeoColumnas = mapearColumnasFlexible(encabezados, {
+      cedula: ['cédula', 'cedula', 'id', 'usuario'],
+      contrasena: ['contraseña', 'contrasena', 'password', 'clave'],
+      estado: ['estado', 'status', 'activo']
+    });
+
+    let adminsActivos = 0;
+    let contrasenasNoHasheadas = 0;
+    let adminsInactivos = 0;
+
+    for (let i = 1; i < datos.length; i++) {
+      const fila = datos[i];
+      const cedula = obtenerValorColumna(fila, mapeoColumnas.cedula);
+      const contrasena = obtenerValorColumna(fila, mapeoColumnas.contrasena);
+      const estado = obtenerValorColumna(fila, mapeoColumnas.estado) || 'activo';
+
+      if (estado.toLowerCase() === 'activo') {
+        adminsActivos++;
+      } else {
+        adminsInactivos++;
+      }
+
+      // Verificar si la contraseña parece estar en texto plano
+      if (contrasena && contrasena.length < 40) {
+        contrasenasNoHasheadas++;
+        reporte.problemas.push(`⚠️ Usuario ${cedula} tiene contraseña en texto plano`);
+      }
+    }
+
+    reporte.estadisticas.adminsActivos = adminsActivos;
+    reporte.estadisticas.adminsInactivos = adminsInactivos;
+    reporte.estadisticas.contrasenasNoHasheadas = contrasenasNoHasheadas;
+
+    // 4. Evaluar nivel de seguridad
+    if (contrasenasNoHasheadas > 0) {
+      reporte.nivel = 'MEDIO';
+      reporte.recomendaciones.push('Ejecutar migrarContrasenasAHash() para migrar contraseñas');
+    }
+
+    if (adminsActivos === 0) {
+      reporte.problemas.push('❌ No hay administradores activos');
+      reporte.nivel = 'CRÍTICO';
+    }
+
+    // 5. Verificar funciones de seguridad
+    try {
+      const testHash = _hashPassword('test123');
+      if (testHash && testHash.length > 40) {
+        console.log('✅ [AUDIT] Función de hashing funciona correctamente');
+      } else {
+        reporte.problemas.push('❌ Función de hashing no funciona correctamente');
+        reporte.nivel = 'CRÍTICO';
+      }
+    } catch (error) {
+      reporte.problemas.push('❌ Error en función de hashing: ' + error.message);
+      reporte.nivel = 'CRÍTICO';
+    }
+
+    console.log(`🎯 [AUDIT] Auditoría completada - Nivel: ${reporte.nivel}`);
+    console.log(`📊 [AUDIT] Estadísticas:`, reporte.estadisticas);
+
+    return reporte;
+
+  } catch (error) {
+    console.error('❌ [AUDIT] Error en auditoría:', error);
+    reporte.success = false;
+    reporte.nivel = 'ERROR';
+    reporte.problemas.push('Error durante la auditoría: ' + error.message);
+    return reporte;
+  }
+}
+
+/**
+ * 🔧 [FIX] Migra contraseñas en texto plano a hashes
+ * Esta función debe ejecutarse UNA VEZ para migrar el sistema existente
+ * @return {Object} Resultado de la migración
+ */
+function migrarContrasenasAHash() {
+  console.log('🔄 [MIGRACIÓN] Iniciando migración de contraseñas a hash...');
+  
+  try {
+    const ss = SpreadsheetApp.getActive();
+    const hojaClave = ss.getSheetByName('Clave');
+    
+    if (!hojaClave) {
+      return {
+        success: false,
+        message: 'Hoja "Clave" no encontrada'
+      };
+    }
+
+    const datos = hojaClave.getDataRange().getValues();
+    if (datos.length <= 1) {
+      return {
+        success: true,
+        message: 'No hay administradores para migrar',
+        migrados: 0
+      };
+    }
+
+    const encabezados = datos[0];
+    const mapeoColumnas = mapearColumnasFlexible(encabezados, {
+      cedula: ['cédula', 'cedula', 'id', 'usuario'],
+      contrasena: ['contraseña', 'contrasena', 'password', 'clave']
+    });
+
+    let migrados = 0;
+    let errores = 0;
+
+    for (let i = 1; i < datos.length; i++) {
+      const fila = datos[i];
+      const cedula = obtenerValorColumna(fila, mapeoColumnas.cedula);
+      const contrasenaActual = obtenerValorColumna(fila, mapeoColumnas.contrasena);
+
+      // Verificar si la contraseña ya está hasheada (los hashes tienen una longitud específica)
+      // Los hashes SHA-256 en Base64 tienen aproximadamente 44 caracteres
+      if (contrasenaActual && contrasenaActual.length < 40) {
+        try {
+          console.log(`🔄 [MIGRACIÓN] Migrando contraseña para usuario: ${cedula}`);
+          
+          // Hashear la contraseña en texto plano
+          const contrasenaHasheada = _hashPassword(contrasenaActual);
+          
+          // Actualizar la celda con el hash
+          const filaReal = i + 1; // +1 porque getRange usa índices 1-based
+          const columnaContrasena = mapeoColumnas.contrasena + 1; // +1 para índice 1-based
+          hojaClave.getRange(filaReal, columnaContrasena).setValue(contrasenaHasheada);
+          
+          migrados++;
+          console.log(`✅ [MIGRACIÓN] Contraseña migrada para usuario: ${cedula}`);
+          
+        } catch (error) {
+          console.error(`❌ [MIGRACIÓN] Error migrando usuario ${cedula}:`, error);
+          errores++;
+        }
+      } else {
+        console.log(`ℹ️ [MIGRACIÓN] Usuario ${cedula} ya tiene contraseña hasheada`);
+      }
+    }
+
+    console.log(`🎯 [MIGRACIÓN] Completada: ${migrados} migrados, ${errores} errores`);
+    
+    return {
+      success: true,
+      message: `Migración completada: ${migrados} contraseñas migradas`,
+      migrados: migrados,
+      errores: errores
+    };
+
+  } catch (error) {
+    console.error('❌ [MIGRACIÓN] Error en migración:', error);
+    return {
+      success: false,
+      message: 'Error durante la migración: ' + error.message
     };
   }
 }
@@ -4293,124 +4432,10 @@ function _hashPassword(password) {
 }
 
 function autenticarAdministrador(credenciales) {
-  console.log('🔐 [AUTH] Iniciando autenticación de administrador...');
+  console.log('🔐 [AUTH] Redirigiendo a autenticación segura...');
   
-  try {
-    // Parsear credenciales
-    let credObj;
-    try {
-      credObj = JSON.parse(credenciales);
-    } catch (parseError) {
-      console.error('Error parseando credenciales:', parseError);
-      return {
-        success: false,
-        message: 'Formato de credenciales inválido'
-      };
-    }
-
-    const { usuario, clave } = credObj;
-    
-    if (!usuario || !clave) {
-      return {
-        success: false,
-        message: 'Usuario y contraseña son requeridos'
-      };
-    }
-
-    console.log('🔍 [AUTH] Buscando administrador:', usuario);
-
-    // Obtener hoja de administradores
-    const ss = SpreadsheetApp.getActive();
-    const hojaClave = ss.getSheetByName('Clave');
-    
-    if (!hojaClave) {
-      console.error('❌ [AUTH] Hoja "Clave" no encontrada');
-      
-      // Crear hoja y usuario por defecto si no existe
-      const crearResult = crearHojaAdministradores();
-      if (!crearResult.success) {
-        return {
-          success: false,
-          message: 'Error: Sistema de administradores no configurado'
-        };
-      }
-      
-      // Reintentar con la hoja recién creada
-      return autenticarAdministrador(credenciales);
-    }
-
-    const datos = hojaClave.getDataRange().getValues();
-    if (datos.length <= 1) {
-      return {
-        success: false,
-        message: 'No hay administradores registrados en el sistema'
-      };
-    }
-
-    // Buscar administrador
-    const encabezados = datos[0];
-    let adminEncontrado = null;
-
-    for (let i = 1; i < datos.length; i++) {
-      const fila = datos[i];
-      const cedulaFila = fila[0]; // Primera columna: Cédula
-      const contraseñaFila = fila[2]; // Tercera columna: Contraseña
-      
-      if (cedulaFila === usuario && contraseñaFila === clave) {
-        adminEncontrado = {
-          cedula: fila[0],
-          nombre: fila[1] || '',
-          cargo: fila[3] || 'Administrador',
-          email: fila[4] || '',
-          permisos: fila[5] || '{}',
-          estado: fila[6] || 'activo'
-        };
-        break;
-      }
-    }
-
-    if (!adminEncontrado) {
-      console.log('❌ [AUTH] Credenciales incorrectas para:', usuario);
-      return {
-        success: false,
-        message: 'Credenciales incorrectas'
-      };
-    }
-
-    // Verificar estado del usuario
-    if (adminEncontrado.estado && adminEncontrado.estado.toLowerCase() === 'inactivo') {
-      return {
-        success: false,
-        message: 'Usuario inactivo. Contacte al administrador del sistema.'
-      };
-    }
-
-    console.log('✅ [AUTH] Autenticación exitosa para:', usuario);
-
-    // Registrar acceso exitoso
-    if (typeof registrarLog === 'function') {
-      registrarLog('INFO', `Acceso de administrador autorizado: ${usuario}`, {
-        cedula: usuario,
-        nombre: adminEncontrado.nombre,
-        cargo: adminEncontrado.cargo,
-        timestamp: new Date().toISOString()
-      }, 'Sistema de Autenticación');
-    }
-
-    return {
-      success: true,
-      message: 'Autenticación exitosa',
-      admin: adminEncontrado,
-      token: `surpass-admin-${usuario}-${Date.now()}` // Token simple para la sesión
-    };
-
-  } catch (error) {
-    console.error('❌ [AUTH] Error en autenticación:', error);
-    return {
-      success: false,
-      message: 'Error interno durante la autenticación: ' + error.message
-    };
-  }
+  // 🔒 [SEGURIDAD] Redirigir a la función segura con hashing
+  return validarAdministradorMejorado(credenciales);
 }
 
 /**
